@@ -8,8 +8,9 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.bot.keyboards import main_menu_kb, sources_kb
+from src.bot.keyboards import cancel_kb, main_menu_kb, sources_kb
 from src.bot.states import AddSource
+from src.core.config import settings
 from src.core.i18n import i18n
 from src.models import Source, SourceType, User
 from src.services.collectors import collect_rss
@@ -17,13 +18,19 @@ from src.services.collectors import collect_rss
 router = Router(name="sources")
 
 
+def _sources_title(locale: str) -> str:
+    tg_hint = i18n.t("sources.title.tg_hint", locale=locale) if settings.has_telethon else ""
+    return i18n.t("sources.title", locale=locale).format(tg_hint=tg_hint)
+
+
 @router.callback_query(F.data == "menu:sources")
 async def cb_menu_sources(callback: CallbackQuery, user: User, session: AsyncSession) -> None:
     sources = await _list_sources(session, user)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(
-            i18n.t("sources.title", locale=user.locale),
-            reply_markup=sources_kb(user.locale, sources),
+            _sources_title(user.locale),
+            parse_mode="HTML",
+            reply_markup=sources_kb(user.locale, sources, show_telegram=settings.has_telethon),
         )
     await callback.answer()
 
@@ -31,25 +38,22 @@ async def cb_menu_sources(callback: CallbackQuery, user: User, session: AsyncSes
 @router.callback_query(F.data.startswith("source:add:"))
 async def cb_source_add(callback: CallbackQuery, user: User, state: FSMContext) -> None:
     parts = (callback.data or "").split(":")
-    kind = parts[2] if len(parts) > 2 else "web"
+    kind = parts[2] if len(parts) > 2 else "rss"
+    # Web is implicit (auto-runs from the post topic) — refuse explicit web-add.
+    if kind == "web":
+        await callback.answer()
+        return
     await state.set_state(AddSource.waiting_for_value)
     await state.update_data(kind=kind)
     prompt_key = {
-        "web": "sources.web",
         "rss": "sources.add_rss_prompt",
         "telegram": "sources.add_tg_prompt",
     }.get(kind, "sources.title")
-    if kind == "web":
-        prompt = (
-            "Введите ключевые слова или поисковый запрос.\n"
-            "Например: <code>искусственный интеллект</code>"
-            if user.locale == "ru"
-            else "Enter keywords or a search query.\ne.g. <code>artificial intelligence</code>"
-        )
-    else:
-        prompt = i18n.t(prompt_key, locale=user.locale)
+    prompt = i18n.t(prompt_key, locale=user.locale)
     if isinstance(callback.message, Message):
-        await callback.message.edit_text(prompt, parse_mode="HTML")
+        await callback.message.edit_text(
+            prompt, parse_mode="HTML", reply_markup=cancel_kb(user.locale)
+        )
     await callback.answer()
 
 
@@ -76,9 +80,11 @@ async def msg_add_source(
 
     await state.clear()
     sources = await _list_sources(session, user)
+    await message.answer(i18n.t("sources.added", locale=user.locale))
     await message.answer(
-        i18n.t("sources.added", locale=user.locale),
-        reply_markup=sources_kb(user.locale, sources),
+        _sources_title(user.locale),
+        parse_mode="HTML",
+        reply_markup=sources_kb(user.locale, sources, show_telegram=settings.has_telethon),
     )
 
 
@@ -100,8 +106,9 @@ async def cb_source_remove(callback: CallbackQuery, user: User, session: AsyncSe
     sources = await _list_sources(session, user)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(
-            i18n.t("sources.title", locale=user.locale),
-            reply_markup=sources_kb(user.locale, sources),
+            _sources_title(user.locale),
+            parse_mode="HTML",
+            reply_markup=sources_kb(user.locale, sources, show_telegram=settings.has_telethon),
         )
     await callback.answer(i18n.t("sources.removed", locale=user.locale))
 

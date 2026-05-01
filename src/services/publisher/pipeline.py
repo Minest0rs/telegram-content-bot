@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from src.core.logging import get_logger
 from src.models import Source, SourceType, SubscriptionTier
-from src.services.ai import ChatMessage, get_provider
+from src.services.ai import ChatMessage, complete_with_fallback
 from src.services.collectors import (
     CollectedItem,
     Period,
@@ -65,14 +65,29 @@ class GenerateResult:
 
 
 async def _collect(sources: list[Source], period: Period, topic: str | None) -> list[CollectedItem]:
-    """Run all enabled sources in parallel and collect their items."""
+    """Run all enabled sources in parallel and collect their items.
+
+    Web search is implicit: when a ``topic`` is given, we always run a web
+    search for it (in addition to any configured RSS / TG sources). This
+    keeps the UX simple — the user types one topic at post-creation time
+    and doesn't have to re-enter it as a "web source query" first.
+    """
     coros: list[asyncio.Future[list[CollectedItem]]] = []
+    web_queries_seen: set[str] = set()
+
+    if topic:
+        coros.append(asyncio.ensure_future(collect_web_search(topic, period=period)))
+        web_queries_seen.add(topic.strip().lower())
+
     for src in sources:
         if not src.enabled:
             continue
         if src.type == SourceType.WEB:
             query = src.value if not topic else f"{src.value} {topic}".strip()
-            coros.append(asyncio.ensure_future(collect_web_search(query, period=period)))
+            key = query.strip().lower()
+            if key and key not in web_queries_seen:
+                web_queries_seen.add(key)
+                coros.append(asyncio.ensure_future(collect_web_search(query, period=period)))
         elif src.type == SourceType.RSS:
             coros.append(asyncio.ensure_future(collect_rss(src.value, period=period)))
         elif src.type == SourceType.TELEGRAM:
@@ -114,9 +129,8 @@ def _build_messages(req: GenerateRequest, items: list[CollectedItem]) -> list[Ch
 
 async def _pick_image_query(req: GenerateRequest, body_text: str) -> str:
     """Ask the AI for a good 3-6 word image search query for the post."""
-    provider = get_provider()
     try:
-        query = await provider.complete(
+        query = await complete_with_fallback(
             [
                 ChatMessage(
                     role="system",
@@ -143,9 +157,8 @@ async def generate_post(req: GenerateRequest) -> GenerateResult:
         # without sources or a topic, we have nothing to write about
         raise RuntimeError("No source items and no topic; cannot generate a post.")
 
-    provider = get_provider()
     messages = _build_messages(req, items)
-    body = await provider.complete(messages, temperature=0.7, max_tokens=1200)
+    body = await complete_with_fallback(messages, temperature=0.7, max_tokens=1200)
 
     image: ImageResult | None = None
     if req.want_image:

@@ -28,7 +28,7 @@ async def collect_web_search(
 
     def _search() -> list[dict[str, Any]]:
         try:
-            from duckduckgo_search import DDGS
+            from ddgs import DDGS
         except ImportError:  # pragma: no cover
             logger.warning("ddgs.import_failed")
             return []

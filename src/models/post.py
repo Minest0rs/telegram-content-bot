@@ -42,7 +42,11 @@ class Post(Base, TimestampMixin):
     channel_id: Mapped[int | None] = mapped_column(ForeignKey("channels.id", ondelete="SET NULL"))
 
     status: Mapped[PostStatus] = mapped_column(
-        SAEnum(PostStatus, name="post_status"),
+        SAEnum(
+            PostStatus,
+            name="post_status",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
         default=PostStatus.DRAFT,
         nullable=False,
     )

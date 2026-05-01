@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.bot.keyboards import confirm_publish_kb, main_menu_kb, period_kb
-from src.bot.keyboards.menu import channel_pick_kb
+from src.bot.keyboards.menu import channel_pick_kb, topic_kb
 from src.bot.states import GeneratePost
 from src.core.i18n import i18n
 from src.core.logging import get_logger
@@ -55,10 +55,8 @@ async def cb_menu_generate(
     if not channels:
         await callback.answer(i18n.t("channels.empty", locale=user.locale), show_alert=True)
         return
-    sources = await _list_sources(session, user)
-    if not sources:
-        await callback.answer(i18n.t("generate.no_sources", locale=user.locale), show_alert=True)
-        return
+    # Sources are optional: web search runs implicitly from the post topic,
+    # so the user can generate posts even without configuring any RSS/TG sources.
 
     await state.set_state(GeneratePost.choose_channel)
     if isinstance(callback.message, Message):
@@ -101,6 +99,8 @@ async def cb_choose_period(callback: CallbackQuery, user: User, state: FSMContex
     if isinstance(callback.message, Message):
         await callback.message.edit_text(
             i18n.t("generate.topic_prompt", locale=user.locale),
+            parse_mode="HTML",
+            reply_markup=topic_kb(user.locale),
         )
     await callback.answer()
 
@@ -109,6 +109,17 @@ async def cb_choose_period(callback: CallbackQuery, user: User, state: FSMContex
 async def msg_topic(message: Message, user: User, session: AsyncSession, state: FSMContext) -> None:
     topic = (message.text or "").strip() or None
     await _kickoff_generation(message, user, session, state, topic=topic)
+
+
+@router.callback_query(GeneratePost.enter_topic, F.data == "generate:topic_skip")
+async def cb_topic_skip(
+    callback: CallbackQuery, user: User, session: AsyncSession, state: FSMContext
+) -> None:
+    if not isinstance(callback.message, Message):
+        await callback.answer()
+        return
+    await callback.answer()
+    await _kickoff_generation(callback.message, user, session, state, topic=None)
 
 
 async def _kickoff_generation(
@@ -269,6 +280,8 @@ async def cb_regenerate(
     if isinstance(callback.message, Message):
         await callback.message.answer(
             i18n.t("generate.topic_prompt", locale=user.locale),
+            parse_mode="HTML",
+            reply_markup=topic_kb(user.locale),
         )
     await callback.answer()
 

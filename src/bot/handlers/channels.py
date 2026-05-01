@@ -8,7 +8,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.bot.keyboards import channels_kb, main_menu_kb
+from src.bot.keyboards import cancel_kb, channels_kb, main_menu_kb
 from src.bot.states import AddChannel
 from src.core.i18n import i18n
 from src.core.logging import get_logger
@@ -36,7 +36,9 @@ async def cb_channel_add(callback: CallbackQuery, user: User, state: FSMContext)
     await state.set_state(AddChannel.waiting_for_channel)
     if isinstance(callback.message, Message):
         await callback.message.edit_text(
-            i18n.t("channels.add_prompt", locale=user.locale), parse_mode="HTML"
+            i18n.t("channels.add_prompt", locale=user.locale),
+            parse_mode="HTML",
+            reply_markup=cancel_kb(user.locale),
         )
     await callback.answer()
 

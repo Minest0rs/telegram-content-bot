@@ -34,7 +34,11 @@ class User(Base, TimestampMixin):
     first_name: Mapped[str | None] = mapped_column(String(128))
     locale: Mapped[str] = mapped_column(String(8), default="ru", nullable=False)
     publish_mode: Mapped[PublishMode] = mapped_column(
-        SAEnum(PublishMode, name="publish_mode"),
+        SAEnum(
+            PublishMode,
+            name="publish_mode",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
         default=PublishMode.PREVIEW,
         nullable=False,
     )

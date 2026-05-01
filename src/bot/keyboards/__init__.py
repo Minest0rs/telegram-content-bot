@@ -1,6 +1,7 @@
 """Inline / reply keyboards."""
 
 from src.bot.keyboards.menu import (
+    cancel_kb,
     channels_kb,
     confirm_publish_kb,
     language_kb,
@@ -13,6 +14,7 @@ from src.bot.keyboards.menu import (
 )
 
 __all__ = [
+    "cancel_kb",
     "channels_kb",
     "confirm_publish_kb",
     "language_kb",

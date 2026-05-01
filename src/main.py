@@ -50,9 +50,14 @@ async def main() -> None:
     storage = _build_storage()
     dp = Dispatcher(storage=storage)
 
-    # outer middlewares (run before filters): db -> user
-    dp.update.outer_middleware(DatabaseMiddleware())
-    dp.update.outer_middleware(UserMiddleware())
+    # outer middlewares (run before filters): db -> user.
+    # Bind to message + callback_query observers so the middleware sees the
+    # concrete event (with .from_user) rather than the wrapping Update.
+    db_mw = DatabaseMiddleware()
+    user_mw = UserMiddleware()
+    for observer in (dp.message, dp.callback_query, dp.pre_checkout_query):
+        observer.outer_middleware(db_mw)
+        observer.outer_middleware(user_mw)
 
     dp.include_router(get_root_router())
     dp.startup.register(_on_startup)
