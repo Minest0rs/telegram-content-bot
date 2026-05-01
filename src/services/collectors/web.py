@@ -22,11 +22,17 @@ async def collect_web_search(
     query: str,
     *,
     period: Period = "day",
-    max_results: int = 10,
+    max_results: int = 15,
 ) -> list[CollectedItem]:
-    """Run a DuckDuckGo text search and convert hits to ``CollectedItem``."""
+    """Run a DuckDuckGo text search and convert hits to ``CollectedItem``.
 
-    def _search() -> list[dict[str, Any]]:
+    We first try a time-restricted search (matching ``period``) and, if it
+    yields too few hits, fall back to an unrestricted search. This handles
+    "evergreen" topics (e.g. "best pastry chefs") that have very few fresh
+    pages but plenty of solid older ones.
+    """
+
+    def _do_search(timelimit: str | None) -> list[dict[str, Any]]:
         try:
             from ddgs import DDGS
         except ImportError:  # pragma: no cover
@@ -35,15 +41,26 @@ async def collect_web_search(
 
         with DDGS() as ddgs:
             try:
-                results = ddgs.text(
-                    query,
-                    timelimit=_DDG_TIMERANGE.get(period, "d"),
-                    max_results=max_results,
-                )
+                kwargs: dict[str, Any] = {"max_results": max_results}
+                if timelimit:
+                    kwargs["timelimit"] = timelimit
+                results = ddgs.text(query, **kwargs)
                 return list(results) if results else []
             except Exception as exc:
-                logger.warning("ddgs.search_failed", error=str(exc))
+                logger.warning(
+                    "ddgs.search_failed",
+                    error=str(exc),
+                    timelimit=timelimit,
+                )
                 return []
+
+    def _search() -> list[dict[str, Any]]:
+        primary = _do_search(_DDG_TIMERANGE.get(period))
+        if len(primary) >= 5:
+            return primary
+        # Fallback: drop the time filter to surface evergreen sources.
+        broad = _do_search(None)
+        return broad if len(broad) > len(primary) else primary
 
     raw = await asyncio.to_thread(_search)
     items: list[CollectedItem] = []

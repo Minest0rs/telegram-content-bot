@@ -163,7 +163,10 @@ async def _kickoff_generation(
         tier=sub.tier,
         custom_system_prompt=user.custom_system_prompt if feat.can_use_custom_prompt else None,
         channel_style=channel.style_summary if feat.can_analyze_channel_style else None,
-        want_image=feat.can_generate_images or _has_stock_keys(),
+        # Pollinations.ai is free and works without API keys, so every tier
+        # gets an auto-generated image. ``can_generate_images`` instead gates
+        # paid premium image backends (e.g. DALL·E) at find_image() level.
+        want_image=True,
     )
 
     try:
@@ -327,15 +330,6 @@ async def _publish_and_finalize(
     await notify_target.answer(
         i18n.t("generate.published", locale=user.locale),
         reply_markup=main_menu_kb(user.locale),
-    )
-
-
-def _has_stock_keys() -> bool:
-    from src.core.config import settings
-
-    return bool(
-        (settings.unsplash_access_key and settings.unsplash_access_key.get_secret_value())
-        or (settings.pexels_api_key and settings.pexels_api_key.get_secret_value())
     )
 
 
