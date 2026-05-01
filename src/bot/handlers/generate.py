@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from datetime import UTC, datetime
 
 from aiogram import Bot, F, Router
@@ -216,13 +217,19 @@ async def _kickoff_generation(
 
     await state.set_state(GeneratePost.confirm)
     await progress.delete()
-    # Show the post body as it would appear when published — no UI text mixed in.
-    if result.image is not None:
+    # Show the post body exactly as it would appear when published.
+    # Telegram caption limit = 1024 chars; if the body is longer, send the
+    # photo and the full HTML text as separate messages (same as the
+    # publisher does for the actual channel post).
+    if result.image is not None and len(body_text) <= 1024:
         try:
-            await message.answer_photo(result.image.url, caption=body_text[:1024])
+            await message.answer_photo(result.image.url, caption=body_text, parse_mode="HTML")
         except Exception:
             await message.answer(body_text, parse_mode="HTML")
     else:
+        if result.image is not None:
+            with contextlib.suppress(Exception):
+                await message.answer_photo(result.image.url)
         await message.answer(body_text, parse_mode="HTML")
     # Confirm/regenerate question goes in a separate follow-up message.
     await message.answer(

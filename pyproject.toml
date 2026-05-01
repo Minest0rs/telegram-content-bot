@@ -71,9 +71,12 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "alembic/versions/*.py" = ["E", "W", "F", "I", "N"]
 "tests/*.py" = ["N802", "N803"]
-"src/core/i18n.py" = ["RUF001"]  # contains Cyrillic translations
-"src/bot/handlers/sources.py" = ["RUF001"]  # Cyrillic prompt text
-"src/bot/keyboards/menu.py" = ["RUF001"]  # emoji-mixed labels
+# Prompts and UI strings intentionally contain Cyrillic / mixed-script text;
+# the ambiguous-character checks (RUF001/RUF002/RUF003) only produce noise.
+"src/services/publisher/pipeline.py" = ["RUF001", "RUF002", "RUF003"]
+"src/core/i18n.py" = ["RUF001", "RUF002", "RUF003"]
+"src/bot/handlers/*.py" = ["RUF001", "RUF002", "RUF003"]
+"src/bot/keyboards/*.py" = ["RUF001", "RUF002", "RUF003"]
 
 [tool.mypy]
 python_version = "3.12"
