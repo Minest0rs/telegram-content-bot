@@ -23,14 +23,19 @@ _DEFAULT_SYSTEM_PROMPT = """\
 You write engaging, well-structured posts for a Telegram channel.
 
 HARD RULES — these override anything else:
-- Use ONLY the supplied source snippets below as your facts. You are NOT
-  allowed to add facts, names, dates, statistics, or claims that are not
-  explicitly present in the snippets.
-- If the snippets are too thin or off-topic to answer the prompt, write a
-  short post that paraphrases what the snippets DO say — never fall back
-  to general knowledge to fill the gap.
-- Quote concrete details from the snippets (specific names, numbers, dates,
-  events) where they exist; do not generalize them away.
+- Write the entire post in {output_language}. Do NOT mix in words from
+  other languages, do NOT use foreign-script characters (no Chinese,
+  Japanese, Arabic, etc. unless they are proper nouns from the sources).
+- Use ONLY the supplied SOURCES as your facts. You are NOT allowed to
+  add facts, names, dates, statistics, or claims that are not explicitly
+  present in the sources.
+- Do NOT hedge ("we can only assume", "к сожалению, не упоминается",
+  "perhaps", "presumably"). If a source has facts on the topic — quote
+  them confidently. If not, just paraphrase what the sources DO say
+  about the closest related angle and write a short post about THAT.
+  Never tell the reader what's missing.
+- Quote concrete details from the sources (specific names, numbers,
+  dates, events). Do not generalize them away.
 - Do NOT include URLs, the word "Sources", or any kind of footer.
 
 Style:
@@ -38,18 +43,24 @@ Style:
 - friendly but informative tone
 - 1-3 emoji where appropriate
 - end with 2-4 relevant hashtags
-- write in the same language as the source material (Russian if the
-  snippets are Russian, English if English, etc.)
-- if the snippets contradict each other, mention that briefly
+- if the sources contradict each other, mention that briefly
 """
+
+_LOCALE_LANGUAGE = {
+    "ru": "Russian (русский)",
+    "en": "English",
+    "es": "Spanish (Español)",
+}
+
 
 _USER_PROMPT_TEMPLATE = """\
 Topic: {topic}
 Time period: {period}
 
-{style_block}Write ONE Telegram post (HTML formatting allowed: <b>, <i>, <u>, <s>, <code>) based STRICTLY on the snippets below.
+{style_block}Write ONE Telegram post (HTML formatting allowed: <b>, <i>, <u>, <s>, <code>) based STRICTLY on the sources below.
 
-Reminder: do NOT add facts that aren't in these snippets.
+Reminder: do NOT add facts that aren't in these sources, and do NOT
+write any apologies about missing information.
 
 SOURCES:
 {sources}
@@ -119,14 +130,21 @@ async def _collect(sources: list[Source], period: Period, topic: str | None) -> 
 
 
 def _build_messages(req: GenerateRequest, items: list[CollectedItem]) -> list[ChatMessage]:
-    system_prompt = req.custom_system_prompt or _DEFAULT_SYSTEM_PROMPT
+    output_language = _LOCALE_LANGUAGE.get(req.locale, "the source-material language")
+    system_prompt_template = req.custom_system_prompt or _DEFAULT_SYSTEM_PROMPT
+    # Allow custom prompts to opt out of language injection by not including
+    # the placeholder.
+    if "{output_language}" in system_prompt_template:
+        system_prompt = system_prompt_template.format(output_language=output_language)
+    else:
+        system_prompt = system_prompt_template
     style_block = ""
     if req.channel_style:
         style_block = (
             "Match this channel's writing style:\n"
             f"<style_guide>\n{req.channel_style}\n</style_guide>\n\n"
         )
-    sources_text = "\n".join(item.to_prompt_line() for item in items[:25]) or "(none)"
+    sources_text = "\n\n".join(item.to_prompt_line() for item in items[:15]) or "(none)"
     user = _USER_PROMPT_TEMPLATE.format(
         topic=req.topic or "(open — pick the most interesting angle)",
         period=req.period,
@@ -170,7 +188,8 @@ async def generate_post(req: GenerateRequest) -> GenerateResult:
         raise RuntimeError("No source items and no topic; cannot generate a post.")
 
     messages = _build_messages(req, items)
-    body = await complete_with_fallback(messages, temperature=0.7, max_tokens=1200)
+    # Lower temperature → less drift / mixed-language tokens / hedging.
+    body = await complete_with_fallback(messages, temperature=0.3, max_tokens=1200)
 
     image: ImageResult | None = None
     if req.want_image:
