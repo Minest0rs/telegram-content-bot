@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from datetime import UTC, datetime
 
 from aiogram import Bot, F, Router
@@ -12,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.bot.keyboards import confirm_publish_kb, main_menu_kb, period_kb
-from src.bot.keyboards.menu import channel_pick_kb
+from src.bot.keyboards.menu import channel_pick_kb, topic_kb
 from src.bot.states import GeneratePost
 from src.core.i18n import i18n
 from src.core.logging import get_logger
@@ -55,10 +56,8 @@ async def cb_menu_generate(
     if not channels:
         await callback.answer(i18n.t("channels.empty", locale=user.locale), show_alert=True)
         return
-    sources = await _list_sources(session, user)
-    if not sources:
-        await callback.answer(i18n.t("generate.no_sources", locale=user.locale), show_alert=True)
-        return
+    # Sources are optional: web search runs implicitly from the post topic,
+    # so the user can generate posts even without configuring any RSS/TG sources.
 
     await state.set_state(GeneratePost.choose_channel)
     if isinstance(callback.message, Message):
@@ -101,6 +100,8 @@ async def cb_choose_period(callback: CallbackQuery, user: User, state: FSMContex
     if isinstance(callback.message, Message):
         await callback.message.edit_text(
             i18n.t("generate.topic_prompt", locale=user.locale),
+            parse_mode="HTML",
+            reply_markup=topic_kb(user.locale),
         )
     await callback.answer()
 
@@ -109,6 +110,17 @@ async def cb_choose_period(callback: CallbackQuery, user: User, state: FSMContex
 async def msg_topic(message: Message, user: User, session: AsyncSession, state: FSMContext) -> None:
     topic = (message.text or "").strip() or None
     await _kickoff_generation(message, user, session, state, topic=topic)
+
+
+@router.callback_query(GeneratePost.enter_topic, F.data == "generate:topic_skip")
+async def cb_topic_skip(
+    callback: CallbackQuery, user: User, session: AsyncSession, state: FSMContext
+) -> None:
+    if not isinstance(callback.message, Message):
+        await callback.answer()
+        return
+    await callback.answer()
+    await _kickoff_generation(callback.message, user, session, state, topic=None)
 
 
 async def _kickoff_generation(
@@ -152,7 +164,10 @@ async def _kickoff_generation(
         tier=sub.tier,
         custom_system_prompt=user.custom_system_prompt if feat.can_use_custom_prompt else None,
         channel_style=channel.style_summary if feat.can_analyze_channel_style else None,
-        want_image=feat.can_generate_images or _has_stock_keys(),
+        # Pollinations.ai is free and works without API keys, so every tier
+        # gets an auto-generated image. ``can_generate_images`` instead gates
+        # paid premium image backends (e.g. DALL·E) at find_image() level.
+        want_image=True,
     )
 
     try:
@@ -201,15 +216,22 @@ async def _kickoff_generation(
         return
 
     await state.set_state(GeneratePost.confirm)
-    preview_text = body_text + "\n\n" + i18n.t("generate.preview_caption", locale=user.locale)
     await progress.delete()
-    if result.image is not None:
+    # Show the post body exactly as it would appear when published.
+    # Telegram caption limit = 1024 chars; if the body is longer, send the
+    # photo and the full HTML text as separate messages (same as the
+    # publisher does for the actual channel post).
+    if result.image is not None and len(body_text) <= 1024:
         try:
-            await message.answer_photo(result.image.url, caption=preview_text[:1024])
+            await message.answer_photo(result.image.url, caption=body_text, parse_mode="HTML")
         except Exception:
-            await message.answer(preview_text, parse_mode="HTML")
+            await message.answer(body_text, parse_mode="HTML")
     else:
-        await message.answer(preview_text, parse_mode="HTML")
+        if result.image is not None:
+            with contextlib.suppress(Exception):
+                await message.answer_photo(result.image.url)
+        await message.answer(body_text, parse_mode="HTML")
+    # Confirm/regenerate question goes in a separate follow-up message.
     await message.answer(
         i18n.t("generate.preview_caption", locale=user.locale),
         reply_markup=confirm_publish_kb(user.locale),
@@ -269,6 +291,8 @@ async def cb_regenerate(
     if isinstance(callback.message, Message):
         await callback.message.answer(
             i18n.t("generate.topic_prompt", locale=user.locale),
+            parse_mode="HTML",
+            reply_markup=topic_kb(user.locale),
         )
     await callback.answer()
 
@@ -313,15 +337,6 @@ async def _publish_and_finalize(
     await notify_target.answer(
         i18n.t("generate.published", locale=user.locale),
         reply_markup=main_menu_kb(user.locale),
-    )
-
-
-def _has_stock_keys() -> bool:
-    from src.core.config import settings
-
-    return bool(
-        (settings.unsplash_access_key and settings.unsplash_access_key.get_secret_value())
-        or (settings.pexels_api_key and settings.pexels_api_key.get_secret_value())
     )
 
 

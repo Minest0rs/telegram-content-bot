@@ -69,10 +69,17 @@ _TRANSLATIONS: dict[Locale, dict[str, str]] = {
         "channels.list_title": "Твои каналы:",
         "channels.removed": "Канал удалён ✓",
 
-        "sources.title": "Настрой откуда брать информацию:",
+        "sources.title": (
+            "Настрой откуда бот берёт инфу.\n"
+            "<i>Веб-поиск работает автоматически — он использует тему, "
+            "которую ты задаёшь при создании поста. Здесь можно добавить "
+            "только RSS-ленты"
+            "{tg_hint}.</i>"
+        ),
+        "sources.title.tg_hint": " и Telegram-каналы",
         "sources.web": "🔍 Веб-поиск",
-        "sources.rss": "📡 RSS-ленты",
-        "sources.telegram": "📨 Telegram-каналы",
+        "sources.rss": "📡 Добавить RSS",
+        "sources.telegram": "📨 Добавить TG-канал",
         "sources.add_rss_prompt": "Пришли URL RSS-ленты:",
         "sources.add_tg_prompt": "Пришли @username канала или ссылку:",
         "sources.added": "Источник добавлен ✓",
@@ -107,10 +114,13 @@ _TRANSLATIONS: dict[Locale, dict[str, str]] = {
         "generate.period.week": "Последняя неделя",
         "generate.period.month": "Последний месяц",
         "generate.topic_prompt": (
-            "О чём писать пост?\n"
-            "Можешь указать тему, ключевые слова, или нажать «Пропустить» — "
-            "тогда бот возьмёт самое интересное из источников."
+            "<b>О чём писать пост?</b>\n"
+            "Введи тему или ключевые слова — бот сам найдёт инфу в вебе "
+            "и напишет пост.\n\n"
+            "<i>Можно пропустить, если у тебя есть RSS/TG-источники — "
+            "тогда бот возьмёт оттуда что-то свежее.</i>"
         ),
+        "generate.topic_skip": "⏭ Пропустить (брать из источников)",
         "generate.no_topic": "—",
         "generate.working": "🔄 Собираю информацию и пишу пост...",
         "generate.collecting": "🔎 Ищу актуальную инфу...",
@@ -202,10 +212,16 @@ _TRANSLATIONS: dict[Locale, dict[str, str]] = {
         "channels.list_title": "Your channels:",
         "channels.removed": "Channel removed ✓",
 
-        "sources.title": "Configure where to pull info from:",
+        "sources.title": (
+            "Configure where the bot pulls info from.\n"
+            "<i>Web search runs automatically using the topic you set at "
+            "post-creation time. Here you can only add RSS feeds"
+            "{tg_hint}.</i>"
+        ),
+        "sources.title.tg_hint": " and Telegram channels",
         "sources.web": "🔍 Web search",
-        "sources.rss": "📡 RSS feeds",
-        "sources.telegram": "📨 Telegram channels",
+        "sources.rss": "📡 Add RSS",
+        "sources.telegram": "📨 Add TG channel",
         "sources.add_rss_prompt": "Send the RSS feed URL:",
         "sources.add_tg_prompt": "Send the channel's @username or link:",
         "sources.added": "Source added ✓",
@@ -239,9 +255,13 @@ _TRANSLATIONS: dict[Locale, dict[str, str]] = {
         "generate.period.week": "Last week",
         "generate.period.month": "Last month",
         "generate.topic_prompt": (
-            "What's the post about?\n"
-            "Specify a topic or keywords, or skip — the bot will pick the best of the sources."
+            "<b>What's the post about?</b>\n"
+            "Type a topic or keywords — the bot will search the web and "
+            "write a post.\n\n"
+            "<i>You can skip this if you have RSS/TG sources configured — "
+            "the bot will pick something fresh from them.</i>"
         ),
+        "generate.topic_skip": "⏭ Skip (use sources only)",
         "generate.no_topic": "—",
         "generate.working": "🔄 Collecting info and writing the post...",
         "generate.collecting": "🔎 Fetching info...",
@@ -333,10 +353,16 @@ _TRANSLATIONS: dict[Locale, dict[str, str]] = {
         "channels.list_title": "Tus canales:",
         "channels.removed": "Canal eliminado ✓",
 
-        "sources.title": "Configura de dónde sacar la información:",
+        "sources.title": (
+            "Configura de dónde el bot saca la información.\n"
+            "<i>La búsqueda web funciona automáticamente con el tema que "
+            "indiques al crear el post. Aquí solo puedes añadir feeds RSS"
+            "{tg_hint}.</i>"
+        ),
+        "sources.title.tg_hint": " y canales de Telegram",
         "sources.web": "🔍 Búsqueda web",
-        "sources.rss": "📡 Feeds RSS",
-        "sources.telegram": "📨 Canales de Telegram",
+        "sources.rss": "📡 Añadir RSS",
+        "sources.telegram": "📨 Añadir canal TG",
         "sources.add_rss_prompt": "Envía la URL del feed RSS:",
         "sources.add_tg_prompt": "Envía el @username o el enlace del canal:",
         "sources.added": "Fuente añadida ✓",
@@ -370,9 +396,13 @@ _TRANSLATIONS: dict[Locale, dict[str, str]] = {
         "generate.period.week": "Última semana",
         "generate.period.month": "Último mes",
         "generate.topic_prompt": (
-            "¿Sobre qué quieres la publicación?\n"
-            "Indica un tema o palabras clave, o salta — el bot tomará lo mejor de las fuentes."
+            "<b>¿Sobre qué quieres la publicación?</b>\n"
+            "Indica un tema o palabras clave — el bot buscará en la web "
+            "y escribirá la publicación.\n\n"
+            "<i>Puedes omitir si tienes fuentes RSS/TG configuradas — "
+            "el bot tomará algo reciente de ahí.</i>"
         ),
+        "generate.topic_skip": "⏭ Omitir (usar solo fuentes)",
         "generate.no_topic": "—",
         "generate.working": "🔄 Recopilando información y redactando...",
         "generate.collecting": "🔎 Buscando información...",

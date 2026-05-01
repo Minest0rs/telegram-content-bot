@@ -26,7 +26,14 @@ class Source(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    type: Mapped[SourceType] = mapped_column(SAEnum(SourceType, name="source_type"), nullable=False)
+    type: Mapped[SourceType] = mapped_column(
+        SAEnum(
+            SourceType,
+            name="source_type",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+    )
     # for web: search query; for rss: feed url; for telegram: @username or t.me/...
     value: Mapped[str] = mapped_column(String(512), nullable=False)
     label: Mapped[str | None] = mapped_column(String(256))

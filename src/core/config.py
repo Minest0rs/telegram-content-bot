@@ -5,7 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AIProvider = Literal["gemini", "groq", "openai", "claude"]
@@ -24,6 +24,14 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _empty_strings_to_none(cls, data: object) -> object:
+        """Treat empty .env values (`KEY=`) as ``None`` for optional fields."""
+        if not isinstance(data, dict):
+            return data
+        return {k: (None if isinstance(v, str) and v.strip() == "" else v) for k, v in data.items()}
 
     # --- Telegram bot ---
     bot_token: SecretStr = Field(default=SecretStr(""))

@@ -26,7 +26,7 @@ class CollectedItem:
     source: str
     published_at: datetime | None = None
 
-    def to_prompt_line(self, max_text: int = 600) -> str:
+    def to_prompt_line(self, max_text: int = 1500) -> str:
         snippet = self.text.strip().replace("\n", " ")
         if len(snippet) > max_text:
             snippet = snippet[:max_text].rsplit(" ", 1)[0] + "..."

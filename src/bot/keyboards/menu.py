@@ -107,7 +107,12 @@ def channels_kb(locale: str, channels: Iterable[Channel]) -> InlineKeyboardMarku
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def sources_kb(locale: str, sources: Iterable[Source]) -> InlineKeyboardMarkup:
+def sources_kb(
+    locale: str,
+    sources: Iterable[Source],
+    *,
+    show_telegram: bool = True,
+) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for src in sources:
         emoji = {"web": "🔍", "rss": "📡", "telegram": "📨"}[src.type.value]
@@ -119,24 +124,59 @@ def sources_kb(locale: str, sources: Iterable[Source]) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="🗑", callback_data=f"source:remove:{src.id}"),
             ]
         )
-    rows.append(
-        [
-            InlineKeyboardButton(
-                text=i18n.t("sources.web", locale=locale), callback_data="source:add:web"
-            ),
-            InlineKeyboardButton(
-                text=i18n.t("sources.rss", locale=locale), callback_data="source:add:rss"
-            ),
+    # Web is implicit (auto-runs from the post topic), so we don't expose
+    # it as an addable source kind to keep the menu non-confusing.
+    add_row = [
+        InlineKeyboardButton(
+            text=i18n.t("sources.rss", locale=locale), callback_data="source:add:rss"
+        ),
+    ]
+    if show_telegram:
+        add_row.append(
             InlineKeyboardButton(
                 text=i18n.t("sources.telegram", locale=locale),
                 callback_data="source:add:telegram",
             ),
-        ]
-    )
+        )
+    rows.append(add_row)
     rows.append(
         [InlineKeyboardButton(text=i18n.t("menu.back", locale=locale), callback_data="menu:main")]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def cancel_kb(locale: str) -> InlineKeyboardMarkup:
+    """Single-button keyboard to abort an FSM step."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.t("menu.cancel", locale=locale),
+                    callback_data="fsm:cancel",
+                )
+            ]
+        ]
+    )
+
+
+def topic_kb(locale: str) -> InlineKeyboardMarkup:
+    """Skip + Cancel buttons for the topic-entry step."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=i18n.t("generate.topic_skip", locale=locale),
+                    callback_data="generate:topic_skip",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text=i18n.t("menu.cancel", locale=locale),
+                    callback_data="fsm:cancel",
+                )
+            ],
+        ]
+    )
 
 
 def style_kb(locale: str) -> InlineKeyboardMarkup:

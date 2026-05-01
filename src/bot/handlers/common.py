@@ -32,6 +32,33 @@ async def on_menu(message: Message, user: User, state: FSMContext) -> None:
     )
 
 
+@router.message(Command("cancel"))
+async def on_cancel_cmd(message: Message, user: User, state: FSMContext) -> None:
+    """Drop any in-progress FSM step and return to main menu."""
+    await state.clear()
+    await message.answer(
+        i18n.t("menu.title", locale=user.locale),
+        reply_markup=main_menu_kb(user.locale),
+    )
+
+
+@router.callback_query(F.data == "fsm:cancel")
+async def cb_cancel(callback: CallbackQuery, user: User, state: FSMContext) -> None:
+    await state.clear()
+    if isinstance(callback.message, Message):
+        try:
+            await callback.message.edit_text(
+                i18n.t("menu.title", locale=user.locale),
+                reply_markup=main_menu_kb(user.locale),
+            )
+        except Exception:
+            await callback.message.answer(
+                i18n.t("menu.title", locale=user.locale),
+                reply_markup=main_menu_kb(user.locale),
+            )
+    await callback.answer()
+
+
 @router.callback_query(F.data == "menu:main")
 async def cb_menu_main(callback: CallbackQuery, user: User, state: FSMContext) -> None:
     await state.clear()

@@ -75,7 +75,11 @@ class Subscription(Base, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
     )
     tier: Mapped[SubscriptionTier] = mapped_column(
-        SAEnum(SubscriptionTier, name="subscription_tier"),
+        SAEnum(
+            SubscriptionTier,
+            name="subscription_tier",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
         default=SubscriptionTier.FREE,
         nullable=False,
     )
