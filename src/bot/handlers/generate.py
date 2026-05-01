@@ -212,15 +212,16 @@ async def _kickoff_generation(
         return
 
     await state.set_state(GeneratePost.confirm)
-    preview_text = body_text + "\n\n" + i18n.t("generate.preview_caption", locale=user.locale)
     await progress.delete()
+    # Show the post body as it would appear when published — no UI text mixed in.
     if result.image is not None:
         try:
-            await message.answer_photo(result.image.url, caption=preview_text[:1024])
+            await message.answer_photo(result.image.url, caption=body_text[:1024])
         except Exception:
-            await message.answer(preview_text, parse_mode="HTML")
+            await message.answer(body_text, parse_mode="HTML")
     else:
-        await message.answer(preview_text, parse_mode="HTML")
+        await message.answer(body_text, parse_mode="HTML")
+    # Confirm/regenerate question goes in a separate follow-up message.
     await message.answer(
         i18n.t("generate.preview_caption", locale=user.locale),
         reply_markup=confirm_publish_kb(user.locale),

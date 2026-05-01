@@ -22,22 +22,34 @@ logger = get_logger(__name__)
 _DEFAULT_SYSTEM_PROMPT = """\
 You write engaging, well-structured posts for a Telegram channel.
 
-Constraints:
+HARD RULES — these override anything else:
+- Use ONLY the supplied source snippets below as your facts. You are NOT
+  allowed to add facts, names, dates, statistics, or claims that are not
+  explicitly present in the snippets.
+- If the snippets are too thin or off-topic to answer the prompt, write a
+  short post that paraphrases what the snippets DO say — never fall back
+  to general knowledge to fill the gap.
+- Quote concrete details from the snippets (specific names, numbers, dates,
+  events) where they exist; do not generalize them away.
+- Do NOT include URLs, the word "Sources", or any kind of footer.
+
+Style:
 - 1-4 short paragraphs
 - friendly but informative tone
-- use 1-3 emoji where appropriate
+- 1-3 emoji where appropriate
 - end with 2-4 relevant hashtags
-- write in the same language as the source material (Russian if Russian sources, English if English, etc.)
-- do NOT invent facts; rely only on the supplied source snippets
-- if the sources contradict each other, mention that briefly
+- write in the same language as the source material (Russian if the
+  snippets are Russian, English if English, etc.)
+- if the snippets contradict each other, mention that briefly
 """
 
 _USER_PROMPT_TEMPLATE = """\
 Topic: {topic}
 Time period: {period}
 
-{style_block}Write a single Telegram post (with HTML formatting allowed: <b>, <i>, <u>, <s>, <code>) based on the snippets below.
-Do NOT include source URLs. Do NOT include the words "Sources:" or any footer.
+{style_block}Write ONE Telegram post (HTML formatting allowed: <b>, <i>, <u>, <s>, <code>) based STRICTLY on the snippets below.
+
+Reminder: do NOT add facts that aren't in these snippets.
 
 SOURCES:
 {sources}
